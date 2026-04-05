@@ -1,0 +1,48 @@
+from datetime import datetime
+import logging
+
+
+def analyze_heartbeat(input_file: str, output_file: str):
+    key = "TSTFEED0300|7E3E|0400"
+
+
+    logging.basicConfig(
+        filename=output_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+
+    timestamps = []
+
+    with open(input_file, "r") as file:
+        for line in file:
+            if key in line:
+
+                idx = line.find("Timestamp ")
+                if idx != -1:
+                    time_str = line[idx + len("Timestamp "): idx + len("Timestamp ") + 8]
+                    try:
+                        time_obj = datetime.strptime(time_str, "%H:%M:%S")
+                        timestamps.append((time_obj, line.strip()))
+                    except ValueError:
+                        continue
+
+
+    for i in range(len(timestamps) - 1):
+        current_time, current_line = timestamps[i]
+        next_time, next_line = timestamps[i + 1]
+
+        diff = abs((current_time - next_time).total_seconds())
+
+        if 31 < diff < 33:
+            logging.warning(
+                f"Heartbeat delay {diff} sec at {current_time.time()} | line: {current_line}"
+            )
+        elif diff >= 33:
+            logging.error(
+                f"Heartbeat delay {diff} sec at {current_time.time()} | line: {current_line}"
+            )
+
+
+if __name__ == "__main__":
+    analyze_heartbeat("hblog.txt", "hb_test.log")
